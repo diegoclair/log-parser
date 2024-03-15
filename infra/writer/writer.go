@@ -3,7 +3,7 @@ package writer
 import (
 	"context"
 	"encoding/json"
-	"os"
+	"io"
 
 	"github.com/diegoclair/go_utils/logger"
 	"github.com/diegoclair/log-parser/application/contract"
@@ -11,11 +11,11 @@ import (
 )
 
 type writer struct {
-	file *os.File
+	file io.Writer
 	log  logger.Logger
 }
 
-func NewWriter(ctx context.Context, file *os.File, log logger.Logger) contract.Writer {
+func NewWriter(ctx context.Context, file io.Writer, log logger.Logger) contract.Writer {
 	return &writer{
 		file: file,
 		log:  log,

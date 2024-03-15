@@ -22,6 +22,14 @@ func main() {
 	ctx := context.Background()
 	log := logger.New(cfg)
 
+	logFile, err := os.Open("./qgames.log")
+	if err != nil {
+		log.Errorf(ctx, "Error to open file: %v", err)
+		return
+	}
+
+	defer logFile.Close()
+
 	resultFile, err := os.Create("./result.json")
 	if err != nil {
 		log.Errorf(ctx, "Error to create file: %v", err)
@@ -52,7 +60,7 @@ func main() {
 		svc.QuakeService.StartExtractingData(ctx, rawLinesChan, writerChan)
 	}()
 
-	scripts.NewQuakeLogParser(log).ExecuteQuakeLogParser(ctx, rawLinesChan)
+	scripts.NewQuakeLogParser(log).ReadLinesFromQuakeLog(ctx, logFile, rawLinesChan)
 
 	wg.Wait()
 

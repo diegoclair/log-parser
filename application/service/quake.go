@@ -24,6 +24,8 @@ func newQuakeService(svc *service) contract.QuakeService {
 
 // StartExtractingData is a method that starts extracting data from the rawLinesChan channel and writes the report to the writerChan channel.
 func (s *quakeService) StartExtractingData(ctx context.Context, rawLinesChan <-chan string, writerChan chan<- dto.Report) {
+	defer close(writerChan)
+
 	var gameData dto.QuakeData
 	gameCount := 0
 
@@ -49,8 +51,6 @@ func (s *quakeService) StartExtractingData(ctx context.Context, rawLinesChan <-c
 	}
 
 	s.sendLastGameReport(&gameData, gameCount, writerChan)
-
-	close(writerChan)
 }
 
 func (s *quakeService) sendLastGameReport(gameData *dto.QuakeData, gameCount int, writerChan chan<- dto.Report) {
