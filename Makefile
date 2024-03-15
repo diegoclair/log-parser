@@ -1,6 +1,6 @@
 .PHONY: tests
 tests:
-	go test -v -cover ./...
+	go test -v -race -cover ./...
 
 .PHONY: mocks
 mocks:

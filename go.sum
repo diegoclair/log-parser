@@ -1,8 +1,8 @@
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/diegoclair/go_utils v1.0.2 h1:RZTuzDwawG6baiRkhBkvobOhm7Bcm9RbRx3Xjbx2Igg=
-github.com/diegoclair/go_utils v1.0.2/go.mod h1:S6UstwCUwsnePNuaFI/RtWaXl1jA6T8CvoFEN9FOUKI=
+github.com/diegoclair/go_utils v1.0.3 h1:5kcX38hYiH1cqQEtrjgSZG1SGcATWqczl2gfCZGNw9E=
+github.com/diegoclair/go_utils v1.0.3/go.mod h1:04qTgpSwQIRIlwawg6shs8hR9ot+wQyqcg8yFtnb+ws=
 github.com/golang/mock v1.6.0 h1:ErTB+efbowRARo13NNdxyJji2egdxLGQhRaY+DUumQc=
 github.com/golang/mock v1.6.0/go.mod h1:p6yTPP+5HYm5mzsMV8JkE6ZKdX+/wYM6Hr+LicevLPs=
 github.com/gookit/color v1.5.4 h1:FZmqs7XOyGgCAxmWyPslpiok1k05wmY3SJTytgvYFs0=
