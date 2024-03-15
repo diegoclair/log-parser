@@ -2,8 +2,9 @@ package service_test
 
 import (
 	"context"
-	"fmt"
+	"reflect"
 	"slices"
+	"sort"
 	"sync"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/diegoclair/log-parser/application/dto"
 	"github.com/diegoclair/log-parser/application/service"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func getQuakeService(t *testing.T) contract.QuakeService {
@@ -33,10 +35,13 @@ type test struct {
 }
 
 var (
-	initGameLine  = `0:00 InitGame: \sv_floodProtect\1\sv_maxPing\0\sv_minPing\0\`
-	userInfoLine1 = `20:34 ClientUserinfoChanged: 2 n\Isgalamido\t\0\model\xian/default\hmodel\`
-	userInfoLine2 = `20:34 ClientUserinfoChanged: 3 n\Mocinha\t\0\model\sarge/default\hmodel\`
-	killLine      = `22:06 Kill: 3 2 7: Isgalamido killed Mocinha by MOD_ROCKET_SPLASH`
+	initGameEvent          = `0:00 InitGame: \sv_floodProtect\1\sv_maxPing\0\sv_minPing\0\`
+	userTest1Event         = `20:34 ClientUserinfoChanged: 2 n\Test1\t\0\model\xian/default\hmodel\`
+	userTest2Event         = `20:34 ClientUserinfoChanged: 3 n\Test2\t\0\model\sarge/default\hmodel\`
+	killEvent              = `22:06 Kill: 3 2 7: Test2 killed Test1 by MOD_ROCKET_SPLASH`
+	killEventDifferentName = `22:06 Kill: 3 2 7: Xxxxx1 killed Xxxxx2 by MOD_ROCKET_SPLASH` // name should be found by id 3 and 2
+	worldKillEvent         = `22:06 Kill: 1022 2 19: <world> killed Test1 by MOD_TRIGGER_HURT`
+	samePlayerKillEvent    = `22:06 Kill: 3 3 7: Test2 killed Test2 by MOD_ROCKET_SPLASH`
 )
 
 var sendLastGameReportTests = []test{
@@ -49,14 +54,14 @@ var sendLastGameReportTests = []test{
 		name: "should be sent a report by last report function",
 		args: args{
 			lines: []string{
-				initGameLine, // we need a initGame line to be possible to send a report
-				userInfoLine1,
+				initGameEvent, // we need a initGame line to be possible to send a report
+				userTest1Event,
 			},
 		},
 		want: []dto.Report{
 			{
 				GameName:     "game_001",
-				Players:      []string{"Isgalamido"},
+				Players:      []string{"Test1"},
 				Kills:        make(map[string]int),
 				KillsByMeans: make(map[string]int),
 			},
@@ -69,7 +74,7 @@ var processNewGameEventTests = []test{
 		name: "should process a new game event",
 		args: args{
 			lines: []string{
-				initGameLine,
+				initGameEvent,
 			},
 		},
 		want: []dto.Report{},
@@ -78,14 +83,14 @@ var processNewGameEventTests = []test{
 		name: "should process a new game event with players and send a report",
 		args: args{
 			lines: []string{
-				initGameLine,
-				userInfoLine1,
+				initGameEvent,
+				userTest1Event,
 			},
 		},
 		want: []dto.Report{
 			{
 				GameName:     "game_001",
-				Players:      []string{"Isgalamido"},
+				Players:      []string{"Test1"},
 				Kills:        make(map[string]int),
 				KillsByMeans: make(map[string]int),
 			},
@@ -95,24 +100,183 @@ var processNewGameEventTests = []test{
 		name: "should process two new game events and send two reports",
 		args: args{
 			lines: []string{
-				initGameLine,
-				userInfoLine1,
-				initGameLine,
-				userInfoLine2,
+				initGameEvent,
+				userTest1Event,
+				initGameEvent,
+				userTest2Event,
 			},
 		},
 		want: []dto.Report{
 			{
 				GameName:     "game_001",
-				Players:      []string{"Isgalamido"},
+				Players:      []string{"Test1"},
 				Kills:        make(map[string]int),
 				KillsByMeans: make(map[string]int),
 			},
 			{
 				GameName:     "game_002",
-				Players:      []string{"Mocinha"},
+				Players:      []string{"Test2"},
 				Kills:        make(map[string]int),
 				KillsByMeans: make(map[string]int),
+			},
+		},
+	},
+}
+
+var processUserChangedEventTests = []test{
+	{
+		name: "should process a user changed event",
+		args: args{
+			lines: []string{
+				initGameEvent,
+				userTest1Event,
+			},
+		},
+		want: []dto.Report{
+			{
+				GameName:     "game_001",
+				Players:      []string{"Test1"},
+				Kills:        make(map[string]int),
+				KillsByMeans: make(map[string]int),
+			},
+		},
+	},
+	{
+		name: "if we have two userChangedEvent and one return error, should send only one user to report",
+		args: args{
+			lines: []string{
+				initGameEvent,
+				userTest1Event,
+				`ClientUserinfoChanged: 3 n\Test2\t\0\model\sarge/default\hmodel\`,
+			},
+		},
+		want: []dto.Report{
+			{
+				GameName:     "game_001",
+				Players:      []string{"Test1"},
+				Kills:        make(map[string]int),
+				KillsByMeans: make(map[string]int),
+			},
+		},
+	},
+}
+
+var processKillEventTests = []test{
+	{
+		name: "should process a kill event",
+		args: args{
+			lines: []string{
+				initGameEvent,
+				userTest1Event,
+				userTest2Event,
+				killEvent,
+			},
+		},
+		want: []dto.Report{
+			{
+				GameName:   "game_001",
+				TotalKills: 1,
+				Players:    []string{"Test1", "Test2"},
+				Kills: map[string]int{
+					"Test2": 1,
+				},
+				KillsByMeans: map[string]int{
+					"MOD_ROCKET_SPLASH": 1,
+				},
+			},
+		},
+	},
+	{
+		name: "should skip kill event if line is a invalid kill event",
+		args: args{
+			lines: []string{
+				initGameEvent,
+				userTest1Event,
+				userTest2Event,
+				` Kill: 3 2 7: Test2 killed Test1 by MOD_ROCKET_SPLASH`,
+				killEvent,
+			},
+		},
+		want: []dto.Report{
+			{
+				GameName:   "game_001",
+				TotalKills: 1,
+				Players:    []string{"Test1", "Test2"},
+				Kills: map[string]int{
+					"Test2": 1,
+				},
+				KillsByMeans: map[string]int{
+					"MOD_ROCKET_SPLASH": 1,
+				},
+			},
+		},
+	},
+	{
+		name: "should process a kill event and get player name by id",
+		args: args{
+			lines: []string{
+				initGameEvent,
+				userTest1Event,
+				userTest2Event,
+				killEventDifferentName,
+			},
+		},
+		want: []dto.Report{
+			{
+				GameName:   "game_001",
+				TotalKills: 1,
+				Players:    []string{"Test1", "Test2"},
+				Kills: map[string]int{
+					"Test2": 1,
+				},
+				KillsByMeans: map[string]int{
+					"MOD_ROCKET_SPLASH": 1,
+				},
+			},
+		},
+	},
+	{
+		name: "should count worldPlayer kill as total kills and decrease killed player kills",
+		args: args{
+			lines: []string{
+				initGameEvent,
+				userTest1Event,
+				userTest2Event,
+				worldKillEvent,
+			},
+		},
+		want: []dto.Report{
+			{
+				GameName:   "game_001",
+				TotalKills: 1,
+				Players:    []string{"Test1", "Test2"},
+				Kills: map[string]int{
+					"Test1": -1,
+				},
+				KillsByMeans: map[string]int{
+					"MOD_TRIGGER_HURT": 1,
+				},
+			},
+		},
+	},
+	{
+		name: "should not count as kill for an user if the killer is the same as the killed",
+		args: args{
+			lines: []string{
+				initGameEvent,
+				userTest1Event,
+				samePlayerKillEvent,
+			},
+		},
+		want: []dto.Report{
+			{
+				GameName:   "game_001",
+				TotalKills: 1,
+				Players:    []string{"Test1"},
+				Kills:      make(map[string]int),
+				KillsByMeans: map[string]int{
+					"MOD_ROCKET_SPLASH": 1,
+				},
 			},
 		},
 	},
@@ -127,6 +291,8 @@ func TestQuakeService_StartExtractingData(t *testing.T) {
 		tests,
 		sendLastGameReportTests,
 		processNewGameEventTests,
+		processUserChangedEventTests,
+		processKillEventTests,
 	)
 
 	tests = append(tests,
@@ -135,6 +301,16 @@ func TestQuakeService_StartExtractingData(t *testing.T) {
 			args: args{
 				lines: []string{
 					"20:34 ----------------------------",
+				},
+			},
+			want: []dto.Report{},
+		},
+		test{
+			name: "item line should be skipped and not processed",
+			args: args{
+				lines: []string{
+					initGameEvent,
+					"20:34 Item: 2 weapon_rocketlauncher",
 				},
 			},
 			want: []dto.Report{},
@@ -167,13 +343,10 @@ func TestQuakeService_StartExtractingData(t *testing.T) {
 				}
 			}()
 
-			for _, line := range tt.args.lines {
-				fmt.Println("Sending line: ", line)
-				lineChan <- line
+			for i := range tt.args.lines {
+				lineChan <- tt.args.lines[i]
 			}
 			close(lineChan)
-
-			fmt.Println("Waiting for writerChan")
 
 			if len(tt.args.lines) == 0 {
 				assert.Equal(t, 0, len(writerChan))
@@ -182,8 +355,14 @@ func TestQuakeService_StartExtractingData(t *testing.T) {
 
 			wg.Wait()
 
-			assert.Equal(t, tt.want, reports)
+			require.Equal(t, len(tt.want), len(reports))
+			for i := range reports {
+				sort.Strings(reports[i].Players)
+				sort.Strings(tt.want[i].Players)
+				require.Equal(t, tt.want[i], reports[i])
+			}
 
+			assert.True(t, reflect.DeepEqual(tt.want, reports))
 		})
 	}
 }
