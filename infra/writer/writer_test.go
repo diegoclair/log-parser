@@ -51,7 +51,7 @@ func TestWriter_StartWriting(t *testing.T) {
 	defer ctrl.Finish()
 	loggerMock := logger.NewMockLogger(ctrl)
 
-	wr := writer.NewWriter(ctx, writerMock, loggerMock)
+	wr := writer.NewWriter(writerMock, loggerMock)
 
 	type args struct {
 		data dto.Report

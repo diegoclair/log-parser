@@ -51,7 +51,7 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		writer.NewWriter(ctx, resultFile, log).StartWriting(ctx, writerChan)
+		writer.NewWriter(resultFile, log).StartWriting(ctx, writerChan)
 	}()
 
 	wg.Add(1)

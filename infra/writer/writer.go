@@ -10,18 +10,23 @@ import (
 	"github.com/diegoclair/log-parser/application/dto"
 )
 
+// writer is a struct that implements the contract.Writer interface.
 type writer struct {
 	file io.Writer
 	log  logger.Logger
 }
 
-func NewWriter(ctx context.Context, file io.Writer, log logger.Logger) contract.Writer {
+// NewWriter creates a new instance of writer that implements contract.Writer interface.
+func NewWriter(file io.Writer, log logger.Logger) contract.Writer {
 	return &writer{
 		file: file,
 		log:  log,
 	}
 }
 
+// StartWriting starts the process of writing the data received from the data channel to the specified file.
+// It marshals the received data into JSON format and writes it to the file.
+// If there is an error during marshaling or writing, it logs the error using the logger.Logger.
 func (w *writer) StartWriting(ctx context.Context, data <-chan dto.Report) {
 	reports := make(dto.QuakeDataReport)
 	for report := range data {
