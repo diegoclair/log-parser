@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"os"
 	"sync"
 	"time"
@@ -14,7 +15,17 @@ import (
 	"github.com/diegoclair/log-parser/transport/scripts"
 )
 
+var (
+	logPath string
+)
+
+func init() {
+	flag.StringVar(&logPath, "logpath", "./qgames.log", "Quake log file path")
+}
+
 func main() {
+	flag.Parse()
+
 	start := time.Now()
 
 	cfg := config.GetDefaultConfig()
@@ -22,7 +33,7 @@ func main() {
 	ctx := context.Background()
 	log := logger.New(cfg)
 
-	logFile, err := os.Open("./qgames.log")
+	logFile, err := os.Open(logPath)
 	if err != nil {
 		log.Errorf(ctx, "Error to open file: %v", err)
 		return
